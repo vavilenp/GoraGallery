@@ -50,7 +50,23 @@ public class GalleryController {
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     @ResponseBody
     public String getAllImagesMetadata() {
-        return storageService.getAllImagesDesc().toJSONString();
+        try {
+            return storageService.getAllImagesDesc().toJSONString();
+        } catch (Throwable th) {
+            return wrapThrowable(th).toJSONString();
+        }
+    }
+
+    @RequestMapping(value = "/delete/{imageId}", method = RequestMethod.DELETE)
+    @ResponseBody
+    public String removeImage(@PathVariable("imageId") int imageId) {
+        try {
+            JSONObject result = new JSONObject();
+            result.put("num_removed", storageService.removeImage(imageId));
+            return result.toJSONString();
+        } catch (Throwable th) {
+            return wrapThrowable(th).toJSONString();
+        }
     }
 
     private JSONObject wrapThrowable(Throwable th) {

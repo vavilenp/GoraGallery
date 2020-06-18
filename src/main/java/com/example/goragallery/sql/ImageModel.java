@@ -19,6 +19,11 @@ public class ImageModel {
     @JoinColumn(name = "preview_id")
     private ImageModel preview;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private ImageModel parent; // reverse to preview
+    // TODO constraint: either parent or preview should be null
+
     public Integer getImageId() {
         return imageId;
     }
@@ -45,5 +50,13 @@ public class ImageModel {
 
     public void setPreview(ImageModel preview) {
         this.preview = preview;
+    }
+
+    public ImageModel getParent() {
+        return parent;
+    }
+
+    public void setParent(ImageModel parent) {
+        this.parent = parent;
     }
 }

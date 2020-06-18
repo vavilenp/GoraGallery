@@ -16,6 +16,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -45,6 +46,10 @@ public class StorageServiceImpl implements StorageService {
             imageModel.setPreview(preview);
         }
         entityManager.persist(imageModel); // auto rollback on IOException
+        if (preview != null) {
+            preview.setParent(imageModel);
+            entityManager.persist(preview);
+        }
         Files.write(getSavePath().resolve(imageModel.getImageId().toString()), data, StandardOpenOption.CREATE);
         return imageModel;
     }
@@ -80,15 +85,44 @@ public class StorageServiceImpl implements StorageService {
             e.printStackTrace();
             return null;
         }
-
     }
 
     @Override
     public JSONArray getAllImagesDesc() {
         JSONArray result = new JSONArray();
-        entityManager.createQuery("from ImageModel as im inner join fetch im.preview").getResultStream()
-                .map(obj -> toJSON((ImageModel) obj)).forEach(result::add);
+        entityManager.createQuery("from ImageModel as im where im.parent is null")
+                .getResultStream().map(obj -> toJSON((ImageModel) obj)).forEach(result::add);
         return result;
+    }
+
+    @Override
+    public int removeImage(int id) {
+        ImageModel img = entityManager.find(ImageModel.class, id);
+        if (img == null) {
+            return 0;
+        }
+
+        if (img.getParent() != null) { // in case of deleting preview retain original
+            img.getParent().setPreview(null);
+            entityManager.persist(img.getParent());
+        }
+
+        Optional<Integer> previewId = Optional.ofNullable(img.getPreview()).map(ImageModel::getImageId);
+        if (previewId.isPresent()) { // in case of deleting original remove preview as well
+            entityManager.remove(img.getPreview());
+        }
+        entityManager.remove(img);
+        removeFromFS(id); // only when entityManager::remove succeeded
+        previewId.ifPresent(this::removeFromFS);
+        return previewId.isPresent() ? 2 : 1;
+    }
+
+    private void removeFromFS(int id) {
+        try {
+            Files.delete(getSavePath().resolve(Integer.toString(id)));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private Path getSavePath() {
@@ -114,12 +148,6 @@ public class StorageServiceImpl implements StorageService {
         if (preview != null) {
             result.put("preview", toJSON(preview));
         }
-        return result;
-    }
-
-    private JSONObject error(String msg) {
-        JSONObject result = new JSONObject();
-        result.put("error", msg);
         return result;
     }
 }
