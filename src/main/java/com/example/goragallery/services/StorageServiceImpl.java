@@ -1,6 +1,7 @@
 package com.example.goragallery.services;
 
 import com.example.goragallery.sql.ImageModel;
+import org.json.simple.JSONArray;
 import org.springframework.core.env.Environment;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,11 +29,11 @@ public class StorageServiceImpl implements StorageService {
 
     @Override
     public JSONObject save(byte[] data, String name, String contentType) throws IOException {
-        return save(data, name, contentType, true);
+        return toJSON(save(data, name, contentType, true));
     }
 
-    private JSONObject save(byte[] data, String name, String contentType, boolean withPreview) throws IOException {
-        JSONObject preview = null;
+    private ImageModel save(byte[] data, String name, String contentType, boolean withPreview) throws IOException {
+        ImageModel preview = null;
         if (withPreview) {
             preview = save(createPreview(data), name + "_preview", "image/png", false);
         }
@@ -40,9 +41,12 @@ public class StorageServiceImpl implements StorageService {
         ImageModel imageModel = new ImageModel();
         imageModel.setName(name);
         imageModel.setContentType(contentType);
+        if (preview != null) {
+            imageModel.setPreview(preview);
+        }
         entityManager.persist(imageModel); // auto rollback on IOException
         Files.write(getSavePath().resolve(imageModel.getImageId().toString()), data, StandardOpenOption.CREATE);
-        return toJSON(imageModel, preview);
+        return imageModel;
     }
 
     private byte[] createPreview(byte[] source) throws IOException {
@@ -79,6 +83,14 @@ public class StorageServiceImpl implements StorageService {
 
     }
 
+    @Override
+    public JSONArray getAllImagesDesc() {
+        JSONArray result = new JSONArray();
+        entityManager.createQuery("from ImageModel as im inner join fetch im.preview").getResultStream()
+                .map(obj -> toJSON((ImageModel) obj)).forEach(result::add);
+        return result;
+    }
+
     private Path getSavePath() {
         if (savePath == null) {
             savePath = Paths.get(environment.getProperty("images.path"));
@@ -93,13 +105,14 @@ public class StorageServiceImpl implements StorageService {
         return previewWidth;
     }
 
-    private JSONObject toJSON(ImageModel imageModel, JSONObject preview) {
+    private JSONObject toJSON(ImageModel imageModel) {
         JSONObject result = new JSONObject();
         result.put("imageId", imageModel.getImageId());
         result.put("name", imageModel.getName());
         result.put("contentType", imageModel.getContentType());
+        ImageModel preview = imageModel.getPreview();
         if (preview != null) {
-            result.put("preview", preview);
+            result.put("preview", toJSON(preview));
         }
         return result;
     }

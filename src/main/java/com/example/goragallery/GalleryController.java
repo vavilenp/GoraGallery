@@ -47,6 +47,12 @@ public class GalleryController {
         return new ResponseEntity<>(new ByteArrayResource(data), headers, HttpStatus.OK);
     }
 
+    @RequestMapping(value = "/list", method = RequestMethod.GET)
+    @ResponseBody
+    public String getAllImagesMetadata() {
+        return storageService.getAllImagesDesc().toJSONString();
+    }
+
     private JSONObject wrapThrowable(Throwable th) {
         JSONObject result = new JSONObject();
         result.put("error", th.getMessage());
