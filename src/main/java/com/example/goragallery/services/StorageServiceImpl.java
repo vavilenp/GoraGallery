@@ -1,16 +1,20 @@
 package com.example.goragallery.services;
 
-import com.example.goragallery.sql.Image;
+import com.example.goragallery.sql.ImageModel;
 import org.springframework.core.env.Environment;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.ImageIO;
 import javax.persistence.EntityManager;
 import javax.transaction.Transactional;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.Optional;
 
 @Service
 @Transactional
@@ -20,6 +24,7 @@ public class StorageServiceImpl implements StorageService {
     @Autowired
     private Environment environment;
     private Path savePath;
+    private Integer previewWidth;
 
     @Override
     public JSONObject save(byte[] data, String name, String contentType) throws IOException {
@@ -27,21 +32,40 @@ public class StorageServiceImpl implements StorageService {
     }
 
     private JSONObject save(byte[] data, String name, String contentType, boolean withPreview) throws IOException {
+        JSONObject preview = null;
         if (withPreview) {
-            // TODO
+            preview = save(createPreview(data), name + "_preview", "image/png", false);
         }
 
-        Image image = new Image();
-        image.setName(name);
-        image.setContentType(contentType);
-        entityManager.persist(image); // auto rollback on IOException
-        Files.write(getSavePath().resolve(image.getImageId().toString()), data, StandardOpenOption.CREATE_NEW);
-        return toJSON(image);
+        ImageModel imageModel = new ImageModel();
+        imageModel.setName(name);
+        imageModel.setContentType(contentType);
+        entityManager.persist(imageModel); // auto rollback on IOException
+        Files.write(getSavePath().resolve(imageModel.getImageId().toString()), data, StandardOpenOption.CREATE);
+        return toJSON(imageModel, preview);
+    }
+
+    private byte[] createPreview(byte[] source) throws IOException {
+        BufferedImage img = ImageIO.read(new ByteArrayInputStream(source));
+        int destWidth = getPreviewWidth();
+        int destHeight = getPreviewWidth() * img.getHeight(null) / img.getWidth(null);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(resize(img, destHeight, destWidth), "png", baos);
+        return baos.toByteArray();
+    }
+
+    private BufferedImage resize(BufferedImage img, int height, int width) {
+        Image tmp = img.getScaledInstance(width, height, Image.SCALE_SMOOTH);
+        BufferedImage resized = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = resized.createGraphics();
+        g2d.drawImage(tmp, 0, 0, null);
+        g2d.dispose();
+        return resized;
     }
 
     @Override
-    public Image getImageModel(int id) {
-        return entityManager.find(Image.class, id);
+    public ImageModel getImageModel(int id) {
+        return entityManager.find(ImageModel.class, id);
     }
 
     @Override
@@ -62,12 +86,21 @@ public class StorageServiceImpl implements StorageService {
         return savePath;
     }
 
-    private JSONObject toJSON(Image image) {
+    private Integer getPreviewWidth() {
+        if (previewWidth == null) {
+            previewWidth = Integer.valueOf(environment.getProperty("preview.width"));
+        }
+        return previewWidth;
+    }
+
+    private JSONObject toJSON(ImageModel imageModel, JSONObject preview) {
         JSONObject result = new JSONObject();
-        result.put("imageId", image.getImageId());
-        result.put("name", image.getName());
-        result.put("contentType", image.getContentType());
-        result.put("previewId", Optional.ofNullable(image.getPreview()).map(Image::getImageId).orElse(-1));
+        result.put("imageId", imageModel.getImageId());
+        result.put("name", imageModel.getName());
+        result.put("contentType", imageModel.getContentType());
+        if (preview != null) {
+            result.put("preview", preview);
+        }
         return result;
     }
 

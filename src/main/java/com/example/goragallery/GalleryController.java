@@ -1,7 +1,7 @@
 package com.example.goragallery;
 
 import com.example.goragallery.services.StorageService;
-import com.example.goragallery.sql.Image;
+import com.example.goragallery.sql.ImageModel;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -30,7 +30,7 @@ public class GalleryController {
 
     @RequestMapping(value = "/image/{imageId}", method = RequestMethod.GET)
     public ResponseEntity<Resource> getImage(@PathVariable("imageId") int imageId) {
-        Image img;
+        ImageModel img;
         byte[] data;
         try {
             img = storageService.getImageModel(imageId);
@@ -49,8 +49,7 @@ public class GalleryController {
 
     private JSONObject wrapThrowable(Throwable th) {
         JSONObject result = new JSONObject();
-        result.put("success", 0);
-        result.put("msg", th.getMessage());
+        result.put("error", th.getMessage());
         return result;
     }
 }

@@ -1,11 +1,10 @@
 package com.example.goragallery.sql;
 
 import javax.persistence.*;
-import java.sql.Blob;
 
 @Entity
 @Table(name = "images")
-public class Image {
+public class ImageModel {
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
     Integer imageId;
@@ -18,7 +17,7 @@ public class Image {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "preview_id")
-    private Image preview;
+    private ImageModel preview;
 
     public Integer getImageId() {
         return imageId;
@@ -40,11 +39,11 @@ public class Image {
         this.contentType = contentType;
     }
 
-    public Image getPreview() {
+    public ImageModel getPreview() {
         return preview;
     }
 
-    public void setPreview(Image preview) {
+    public void setPreview(ImageModel preview) {
         this.preview = preview;
     }
 }

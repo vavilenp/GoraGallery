@@ -23,6 +23,10 @@
 			<id>jitpack.io</id>
 			<url>https://jitpack.io</url>
 		</repository>
+		<repository>
+			<id>cedarsoft-thirdparty</id>
+			<url>http://maven.cedarsoft.com/content/repositories/thirdparty/</url>
+		</repository>
 	</repositories>
 
 	<dependencies>

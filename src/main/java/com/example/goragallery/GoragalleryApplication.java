@@ -29,7 +29,7 @@ public class GoragalleryApplication {
 	@Bean(name = "multipartResolver")
 	public CommonsMultipartResolver multipartResolver() {
 		CommonsMultipartResolver multipartResolver = new CommonsMultipartResolver();
-		multipartResolver.setMaxUploadSize(Long.parseLong(env.getProperty("image.maxSizeBytes")));
+		multipartResolver.setMaxUploadSize(Long.parseLong(env.getProperty("imageModel.maxSizeBytes")));
 		return multipartResolver;
 	}
 
